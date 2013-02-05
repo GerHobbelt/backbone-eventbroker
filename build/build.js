@@ -64,7 +64,7 @@ function build(fileList, outputPath, options) {
  * @param {outputPath} outputPath   Relative path to output file
  */
 function uglify(srcPath, outputPath) {
-  var parse = uglifyJS.parser.parse,
+  var parse = uglifyJS.parse,
       uglify = uglifyJS.uglify;
 
   var output = parse(fs.readFileSync(srcPath, fileEncoding));
@@ -91,7 +91,7 @@ build(fileList, outputDir + '/backbone-eventbroker.js', {
   template: templateDir + '/backbone-eventbroker.js',
   data: templateData
 });
-uglify(outputDir + '/backbone-eventbroker.js', outputDir + '/backbone-eventbroker.min.js');
+//uglify(outputDir + '/backbone-eventbroker.js', outputDir + '/backbone-eventbroker.min.js');
 
 
 //File for AMD (requireJS)
@@ -99,4 +99,4 @@ build(fileList, outputDir + '/backbone-eventbroker.amd.js', {
   template: templateDir + '/backbone-eventbroker.amd.js',
   data: templateData
 });
-uglify(outputDir + '/backbone-eventbroker.amd.js', outputDir + '/backbone-eventbroker.amd.min.js');
+//uglify(outputDir + '/backbone-eventbroker.amd.js', outputDir + '/backbone-eventbroker.amd.min.js');
