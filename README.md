@@ -1,5 +1,8 @@
 ## EventBroker API
-Provides a general purpose [Backbone](http://documentcloud.github.com/backbone/ "Title") Event Broker implementation based on the Backbone [Events API](http://documentcloud.github.com/backbone/#Events "Title"). 
+Provides a general purpose [Backbone](http://documentcloud.github.com/backbone/ "Title") Event Broker implementation based on the Backbone [Events API](http://documentcloud.github.com/backbone/#Events "Title").
+
+Run the <a href="http://htmlpreview.github.com/?https://github.com/efeminella/backbone-eventbroker/blob/master/spec/spec-runner.html" target="_blank">Specs</a>
+ / <a href="http://htmlpreview.github.com/?https://github.com/efeminella/backbone-eventbroker/blob/master/examples/basic/index.html" target="_blank">Example</a>
 
 The `EventBroker` can be used directly to serve as a centralized event management mechanism for an entire application. Namespaced brokers can also be created in order to provide context specific brokers within an application.
 
@@ -10,22 +13,24 @@ The `EventBroker` can be used directly to publish and subscribe to events of int
 var Users = Backbone.Collection.extend{{
     initialize: function(){
       // subscribe to an event ...
-      Backbone.EventBroker.on('users:add', this.add, this);
+      this.listenTo(Backbone.EventBroker, 'users:add', this.add);
     },
     add: function(user) {
-      console.log(user.id);
+      console.log(user.get('id'));
     }
 };
 
 var UserEditor = Backbone.View.extend({
-     el: '#editor',
+     el: '#user-editor',
      initialize: function(broker){
-        this.$userId = this.$('#userId');
+        this.$userId = this.$('.user-id');
      },
      add: function() {
        // publish an event ...
-       var user = new User({id: this.$userId().val()});
-       Backbone.EventBroker.trigger('users:add', user);
+       Backbone.EventBroker.trigger('users:add', new User({
+           'id': this.$userId().val()
+           //other values ...
+       }));
     }
 };
 // ...
@@ -40,30 +45,37 @@ Namespaced `EventBrokers` are retrieved via `Backbone.EventBroker.get([namespace
 var Users = Backbone.Collection.extend{{
     // use the 'users' broker
     usersBroker: Backbone.EventBroker.get('users'),
-
     initialize: function(broker){
-      this.usersBroker.on('add', this.add, this);
+      this.listenTo(this.usersBroker, 'add', this.add);
     },
     add: function(user) {
-      console.log(user.id);
+      console.log(user.get('id'));
     }
 };
 
 var UserEditor = Backbone.View.extend({
-    el: '#editor',
+    el: '#user-editor',
+    events: {
+        'click .add-user' : 'addUser'
+      , 'click .add-role' : 'addRole'
+    },
     // use the 'users' broker
     usersBroker: Backbone.EventBroker.get('users'),
-
     // also use the 'roles' broker
-    rolesBroker : Backbone.EventBroker.get('roles'),
+    rolesBroker: Backbone.EventBroker.get('roles'),
 
-    initialize: function(broker){
-      this.$userId = this.$('#userId');
+    addUser: function(evt) {
+      // publish an event to the usersBroker
+      this.usersBroker.trigger('add', new User({
+           'id': this.$('.user-id').val()
+           //other values ...
+      }));
     },
-    add: function() {
-      // publish an event
-      var user = new User({id: this.$userId().val()});
-      this.usersBroker.trigger('add', user);
+    addRole: function(evt) {
+      // publish an event to the rolesBroker
+      this.rolesBroker.trigger('add', new Role({
+           'type': this.$('.user-id').val()
+      }));
     }
 };
 ```
@@ -73,50 +85,57 @@ Since namespaced `EventBrokers` ensure events are only piped thru the `EventBrok
 ``` javascript
 var Users = Backbone.Collection.extend{{
     // use the 'users' broker
-    userBroker: Backbone.EventBroker.get('users'),
+    usersBroker: Backbone.EventBroker.get('users'),
 
     initialize: function(broker){
       // prefix the namespace if desired
-      this.userBroker.on('users:add', this.add, this);
+      this.listenTo(this.usersBroker, 'users:add', this.add);
     },
     add: function(user) {
-      console.log(user.id);
+      console.log(user.get('id'));
     }
 };
 
 var UserEditor = Backbone.View.extend({
-    el: '#editor',
+    el: '#user-editor',
+    events: {
+        'click .add-user' : 'addUser'
+      , 'click .add-role' : 'addRole'
+    },
     // use the 'users' broker
     usersBroker: Backbone.EventBroker.get('users'),
-
-    // also use the unique 'roles' broker
+    // also use the 'roles' broker
     rolesBroker: Backbone.EventBroker.get('roles'),
 
-    initialize: function(broker){
-      this.$userId = this.$('#userId');
+    addUser: function(evt) {
+      // publish an event to the usersBroker
+      this.usersBroker.trigger('users:add', new User({
+           'id': this.$('.user-id').val()
+           //other values ...
+      }));
     },
-    add: function() {
-      // publish an event
-      var user = new User({id: this.$userId().val()});
-      // prefix the namespace if desired
-      this.usersBroker.trigger('users:add', user);
+    addRole: function(evt) {
+      // publish an event to the rolesBroker
+      this.rolesBroker.trigger('roles:add', new Role({
+           'type': this.$('.user-id').val()
+      }));
     }
 };
 ```
 
 ### Registering Interests
-Modules can register events of interest with an `EventBroker` via the default '[on](http://documentcloud.github.com/backbone/#Events-on "Title")' method or the `register` method. The `register` method allows for registering multiple event/callback mappings for a given context in a manner similar to that of the [events hash](http://documentcloud.github.com/backbone/#View-extend "Title") in a Backbone.View.
+Modules can register events of interest with an `EventBroker` via the default '[on](http://documentcloud.github.com/backbone/#Events-on "Title")' method or the `register` method. The `register` method allows for registering multiple event/callback mappings declaratively for a given context in a manner similar to that of the [events hash](http://documentcloud.github.com/backbone/#View-extend "Title") in a Backbone.View.
 
 ``` javascript
 // Register event/callbacks based on a hash and associated context
 var Users = Backbone.Collection.extend({
     initialize: function() {
       Backbone.EventBroker.register({
-        'user:select'   : 'select',
-        'user:deselect' : 'deselect',
-        'user:edit'     : 'edit',
-        'user:update'   : 'update',
-        'user:remove'   : 'remove'
+        'user:select'   : 'select'
+      , 'user:deselect' : 'deselect'
+      , 'user:edit'     : 'edit'
+      , 'user:update'   : 'update'
+      , 'user:remove'   : 'remove'
       }, this );
     },
     select: function() { ... },
@@ -127,22 +146,22 @@ var Users = Backbone.Collection.extend({
 });
 ```
 
-Alternately, Modules can simply define an "interests" property containing particular event/callback mappings of interests and register themselves with an `EventBroker`
+Alternatively, modules can define an "interests" property which provides specific event/callback mappings, allowing for declarative registration with an `EventBroker`:
 
 ``` javascript
 // Register event/callbacks based on a hash and associated context
 var Users = Backbone.Collection.extend({
     // defines events of interest and their corresponding callbacks
-    this.interests: {
-      'user:select'   : 'select',
-      'user:deselect' : 'deselect',
-      'user:edit'     : 'edit',
-      'user:update'   : 'update',
-      'user:remove'   : 'remove'
+    interests: {
+        'user:select'   : 'select'
+      , 'user:deselect' : 'deselect'
+      , 'user:edit'     : 'edit'
+      , 'user:update'   : 'update'
+      , 'user:remove'   : 'remove'
     },
     initialize: function() {
       // register this object with the EventBroker
-      Backbone.EventBroker.register( this );
+      Backbone.EventBroker.register(this);
     },
     select: function() { ... },
     deselect: function() { ... },
@@ -151,30 +170,59 @@ var Users = Backbone.Collection.extend({
     remove: function() { ... }
 });
 ```
+Objects can also implement their "interests" as a function which returns an object of specific event/callback mappings, allowing for runtime configurations of interests:
+
+``` javascript
+// Register event/callbacks based on a hash and associated context
+var Users = Backbone.Collection.extend({
+    // defines events of interest and their corresponding callbacks
+    this.interests: function(){
+        return _.extend({
+            'user:select'   : 'select'
+          , 'user:deselect' : 'deselect'
+        }, ( this.isAdmin() ? {
+            'user:edit'     : 'edit'
+          , 'user:update'   : 'update'
+          , 'user:remove'   : 'remove'
+        } : {} ));
+    },
+    initialize: function() {
+      // register this object with the EventBroker
+      Backbone.EventBroker.register(this);
+    },
+    select: function() { ... },
+    deselect: function() { ... },
+    edit: function() { ... },
+    update: function() { ... },
+    remove: function() { ... }
+});
+```
+
+As of version 1.0.0, if a given callback is not a function, the EventBroker will throw an exception, similar to declaratively mapping an event callback in a Backbone.View.
 
 Modules can use different namespaced `EventBrokers` for different things...
 
 ``` javascript
 // Register event/callbacks with different EventBrokers...
 var CartView = Backbone.View.extend({
-    // Reference the 'items' EventBroker...
+    // reference the 'items' EventBroker...
     itemsBroker: Backbone.EventBroker.get('items'),
 
-    // Reference the 'inventory' EventBroker...
+    // reference the 'inventory' EventBroker...
     inventoryBroker: Backbone.EventBroker.get('inventory'),
 
     initialize: function() {
       // register events/callbacks with 'items' EventBroker...
       this.itemsBroker.register({
-        'add'      : 'add',
-        'update'   : 'update',
-        'remove'   : 'remove'
+        'add'      : 'add'
+      , 'update'   : 'update'
+      , 'remove'   : 'remove'
       }, this );
       // register events/callbacks with 'inventory' EventBroker...
       this.inventoryBroker.register({
-        'select'   : 'select',
-        'deselect' : 'deselect',
-        'edit'     : 'edit'
+        'select'   : 'select'
+      , 'deselect' : 'deselect'
+      , 'edit'     : 'edit'
       }, this );
     },
     add: function() { ... },
@@ -191,10 +239,10 @@ To test if an `EventBroker` has been created for a given `namespace`, invoke the
 
 ``` javascript
 // determines if an event broker for the given namespace exists
-var EventBroker = Backbone.EventBroker;
-EventBroker.get('roles'); // returns the 'roles' EventBroker
-EventBroker.has('roles'); //true
-EventBroker.has('users'); //false
+var broker = Backbone.EventBroker;
+broker.get('roles'); // returns the 'roles' EventBroker
+broker.has('roles'); //true
+broker.has('users'); //false
 ```
 
 
@@ -203,10 +251,10 @@ To destroy an existing `EventBroker` for a given `namespace`, invoke the `destro
 
 ``` javascript
 // deletes the event broker for the given namespace
-var EventBroker = Backbone.EventBroker;
-EventBroker.get('permissions');
-EventBroker.destroy('permissions'); // returns the 'permissions' EventBroker
-EventBroker.has('permissions'); //false
+var broker = Backbone.EventBroker;
+broker.get('permissions');
+broker.destroy('permissions'); // returns the 'permissions' EventBroker
+broker.has('permissions'); //false
 ```
 
 
@@ -215,13 +263,13 @@ To destroy all existing `EventBrokers`, invoke the `destroy` method with no argu
 
 ``` javascript
 // deletes the event broker for the given namespace
-var EventBroker = Backbone.EventBroker;
-EventBroker.get('permissions'); // returns the 'permissions' EventBroker
-EventBroker.get('users'); // returns the 'users' EventBroker
-EventBroker.get('roles'); // returns the 'roles' EventBroker
-EventBroker.destroy();
+var broker = Backbone.EventBroker;
+broker.get('permissions'); // returns the 'permissions' EventBroker
+broker.get('users'); // returns the 'users' EventBroker
+broker.get('roles'); // returns the 'roles' EventBroker
+broker.destroy();
 
-EventBroker.has('permissions' ); //false
-EventBroker.has('users'); //false
-EventBroker.has('roles'); //false
+broker.has('permissions' ); //false
+broker.has('users'); //false
+broker.has('roles'); //false
 ```
